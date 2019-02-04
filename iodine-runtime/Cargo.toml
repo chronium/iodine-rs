@@ -1,0 +1,7 @@
+[package]
+name = "iodine-runtime"
+version = "0.1.0"
+authors = ["onliv"]
+edition = "2018"
+
+[dependencies]
