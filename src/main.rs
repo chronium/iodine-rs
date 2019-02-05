@@ -10,7 +10,7 @@ use std::{
 use byteorder::{LittleEndian, ReadBytesExt};
 use leb128;
 
-use iodine_runtime::IodineObjects;
+use iodine_runtime::{opcode::Opcode, Instruction, IodineObjects};
 
 const MAGIC: [u8; 5] = [0x49, 0x4F, 0x57, 0x49, 0x5A];
 
@@ -82,7 +82,7 @@ fn read_module(file: &mut File) -> io::Result<IodineObjects> {
 }
 
 fn read_code_object(file: &mut File) -> io::Result<IodineObjects> {
-    let code = IodineObjects::CodeObject {
+    let mut code = IodineObjects::CodeObject {
         instructions: Vec::new(),
     };
 
@@ -90,5 +90,56 @@ fn read_code_object(file: &mut File) -> io::Result<IodineObjects> {
 
     println!("Module instruction count: {}", instruction_count);
 
+    for _ in 0..instruction_count {
+        code.push_instruction(read_instruction(file)?);
+    }
+
     Ok(code)
+}
+
+fn read_constant(file: &mut File) -> io::Result<IodineObjects> {
+    let iodine_type = DataType::from(file.read_u8()?);
+    println!("Encountered type: {:?}", iodine_type);
+
+    match iodine_type {
+        DataType::StringObject => {
+            return Ok(IodineObjects::IodineString {
+                value: read_string(file)?,
+            });
+        }
+        _ => unimplemented!(),
+    }
+}
+
+fn read_instruction(file: &mut File) -> io::Result<Instruction> {
+    let opcode = Opcode::from(file.read_u8()?);
+    println!("Opcode: {:?}", opcode);
+
+    let argument = file.read_i32::<LittleEndian>()?;
+    println!("Argument: {}", argument);
+
+    let argument_obj = read_constant(file)?;
+    println!("Argument Object: {:?}", argument_obj);
+
+    let _line = file.read_i32::<LittleEndian>();
+
+    Ok(Instruction {
+        opcode: opcode,
+        argument: argument,
+        object: IodineObjects::IodineNull,
+    })
+}
+
+#[derive(Debug)]
+enum DataType {
+    StringObject,
+}
+
+impl From<u8> for DataType {
+    fn from(iodine_type: u8) -> DataType {
+        match iodine_type {
+            0x02 => DataType::StringObject,
+            _ => unimplemented!(),
+        }
+    }
 }

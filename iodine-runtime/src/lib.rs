@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use lazy_static::*;
 
-mod opcode;
+pub mod opcode;
 use crate::opcode::Opcode;
 
 fn create_type(name: &str) -> (String, AttributeDictionary) {
@@ -34,14 +34,17 @@ lazy_static! {
         let module_type = create_type("Module");
         types.insert(module_type.0, module_type.1);
 
+        let null_type = create_type("Null");
+        types.insert(null_type.0, null_type.1);
+
         types
     };
 }
 
 pub struct Instruction {
-    opcode: Opcode,
-    argument: i32,
-    object: IodineObjects,
+    pub opcode: Opcode,
+    pub argument: i32,
+    pub object: IodineObjects,
 }
 
 pub trait IodineObject {
@@ -62,6 +65,7 @@ pub enum IodineObjects {
         name: String,
         code: Box<IodineObjects>,
     },
+    IodineNull,
 }
 
 unsafe impl Sync for IodineObjects {}
@@ -77,12 +81,34 @@ impl IodineObject for IodineObjects {
             IodineObjects::CodeObject { instructions: _ } => "Code".to_string(),
             IodineObjects::IodineObject => "Object".to_string(),
             IodineObjects::IodineModule { name: _, code: _ } => "Module".to_string(),
+            IodineObjects::IodineNull => "Null".to_string(),
         }
     }
 
     fn get_base(&self) -> String {
         match self {
             _ => "Object".to_string(),
+        }
+    }
+}
+
+impl IodineObjects {
+    pub fn push_instruction(&mut self, instruction: Instruction) {
+        match self {
+            IodineObjects::CodeObject { instructions } => instructions.push(instruction),
+            _ => panic!("Cannot push instruction on non CodeObject"),
+        }
+    }
+}
+
+impl fmt::Debug for IodineObjects {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            IodineObjects::IodineString { value } => write!(f, "String: {}", value),
+            IodineObjects::CodeObject { instructions: _ } => write!(f, "Code"),
+            IodineObjects::IodineObject => write!(f, "Object"),
+            IodineObjects::IodineModule { name: _, code: _ } => write!(f, "Module"),
+            IodineObjects::IodineNull => write!(f, "Null"),
         }
     }
 }
