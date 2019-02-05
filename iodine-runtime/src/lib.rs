@@ -1,16 +1,22 @@
-use std::{collections::HashMap, fmt};
+#![feature(box_patterns)]
+
+use std::{collections::HashMap, fmt, rc::Rc};
 
 use lazy_static::*;
 
+pub mod iodine_context;
 pub mod opcode;
-use crate::opcode::Opcode;
+pub mod stack_frame;
+pub mod virtual_machine;
+
+use crate::{opcode::Opcode, stack_frame::StackFrame, virtual_machine::VirtualMachine};
 
 fn create_type(name: &str) -> (String, AttributeDictionary) {
     let mut attribs = AttributeDictionary::new();
 
     attribs.insert(
         "__name__".to_string(),
-        IodineObjects::IodineString {
+        IodineObject::IodineString {
             value: name.to_string(),
         },
     );
@@ -43,16 +49,10 @@ lazy_static! {
 pub struct Instruction {
     pub opcode: Opcode,
     pub argument: i32,
-    pub object: IodineObjects,
+    pub object: Rc<IodineObject>,
 }
 
-pub trait IodineObject {
-    fn get_type(&self) -> String;
-
-    fn get_base(&self) -> String;
-}
-
-pub enum IodineObjects {
+pub enum IodineObject {
     IodineString {
         value: String,
     },
@@ -62,7 +62,7 @@ pub enum IodineObjects {
     IodineObject,
     IodineModule {
         name: String,
-        code: Box<IodineObjects>,
+        code: Box<IodineObject>,
     },
     IodineNull,
     IodineName {
@@ -70,21 +70,35 @@ pub enum IodineObjects {
     },
 }
 
-unsafe impl Sync for IodineObjects {}
-unsafe impl Send for IodineObjects {}
+unsafe impl Sync for IodineObject {}
+unsafe impl Send for IodineObject {}
 
-pub type AttributeDictionary = HashMap<String, IodineObjects>;
+pub type AttributeDictionary = HashMap<String, IodineObject>;
 pub type IodineTypesDict = HashMap<String, AttributeDictionary>;
 
-impl IodineObject for IodineObjects {
+impl IodineObject {
+    pub fn push_instruction(&mut self, instruction: Instruction) {
+        match self {
+            IodineObject::CodeObject { instructions } => instructions.push(instruction),
+            _ => panic!("Cannot push instruction on non CodeObject"),
+        }
+    }
+
+    pub fn get_instructions(&self) -> &Vec<Instruction> {
+        match self {
+            IodineObject::CodeObject { instructions } => instructions,
+            _ => panic!("Cannot get instruction from non CodeObject"),
+        }
+    }
+
     fn get_type(&self) -> String {
         match self {
-            IodineObjects::IodineString { value: _ } => "Str".to_string(),
-            IodineObjects::CodeObject { instructions: _ } => "Code".to_string(),
-            IodineObjects::IodineObject => "Object".to_string(),
-            IodineObjects::IodineModule { name: _, code: _ } => "Module".to_string(),
-            IodineObjects::IodineNull => "Null".to_string(),
-            IodineObjects::IodineName { value: _ } => "Name".to_string(),
+            IodineObject::IodineString { value: _ } => "Str".to_string(),
+            IodineObject::CodeObject { instructions: _ } => "Code".to_string(),
+            IodineObject::IodineObject => "Object".to_string(),
+            IodineObject::IodineModule { name: _, code: _ } => "Module".to_string(),
+            IodineObject::IodineNull => "Null".to_string(),
+            IodineObject::IodineName { value: _ } => "Name".to_string(),
         }
     }
 
@@ -93,26 +107,36 @@ impl IodineObject for IodineObjects {
             _ => "Object".to_string(),
         }
     }
-}
 
-impl IodineObjects {
-    pub fn push_instruction(&mut self, instruction: Instruction) {
+    pub fn invoke(&self, vm: &mut VirtualMachine, arguments: Vec<IodineObject>) -> IodineObject {
         match self {
-            IodineObjects::CodeObject { instructions } => instructions.push(instruction),
-            _ => panic!("Cannot push instruction on non CodeObject"),
+            IodineObject::IodineModule { name: _, code } => {
+                vm.new_frame(StackFrame {
+                    stack: Vec::new(),
+                    locals: AttributeDictionary::new(),
+                    instruction_pointer: 0usize,
+                });
+
+                let ret = vm.eval_code(code);
+
+                vm.end_frame();
+
+                ret
+            }
+            _ => unimplemented!(),
         }
     }
 }
 
-impl fmt::Debug for IodineObjects {
+impl fmt::Debug for IodineObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            IodineObjects::IodineString { value } => write!(f, "{}", value),
-            IodineObjects::CodeObject { instructions: _ } => write!(f, "Code"),
-            IodineObjects::IodineObject => write!(f, "Object"),
-            IodineObjects::IodineModule { name: _, code: _ } => write!(f, "Module"),
-            IodineObjects::IodineNull => write!(f, "Null"),
-            IodineObjects::IodineName { value } => write!(f, "{}", value),
+            IodineObject::IodineString { value } => write!(f, "{}", value),
+            IodineObject::CodeObject { instructions: _ } => write!(f, "Code"),
+            IodineObject::IodineObject => write!(f, "Object"),
+            IodineObject::IodineModule { name: _, code: _ } => write!(f, "Module"),
+            IodineObject::IodineNull => write!(f, "Null"),
+            IodineObject::IodineName { value } => write!(f, "{}", value),
         }
     }
 }

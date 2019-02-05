@@ -5,12 +5,13 @@ use std::{
     io,
     io::prelude::*,
     io::{Error, ErrorKind},
+    rc::Rc,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use leb128;
 
-use iodine_runtime::{opcode::Opcode, Instruction, IodineObjects};
+use iodine_runtime::{opcode::Opcode, virtual_machine::VirtualMachine, Instruction, IodineObject};
 
 const MAGIC: [u8; 5] = [0x49, 0x4F, 0x57, 0x49, 0x5A];
 
@@ -51,9 +52,17 @@ fn run() -> io::Result<()> {
 
     println!("Expected iodine version: {}", header.ver_to_str());
 
-    let module = read_module(&mut file);
+    let module = read_module(&mut file)?;
 
-    file.read_u8();
+    let mut vm = VirtualMachine {
+        frames: Vec::new(),
+        stack_size: 0usize,
+        frame_count: 0usize,
+    };
+
+    println!("\n-----Execution started-----\n");
+
+    module.invoke(&mut vm, Vec::new());
 
     Ok(())
 }
@@ -69,20 +78,20 @@ fn read_string(file: &mut File) -> io::Result<String> {
     Ok(String::from_utf8(str_bytes).unwrap())
 }
 
-fn read_module(file: &mut File) -> io::Result<IodineObjects> {
+fn read_module(file: &mut File) -> io::Result<IodineObject> {
     let name = read_string(file)?;
     file.read_u8()?;
 
     println!("Encountered module: {}", name);
 
-    Ok(IodineObjects::IodineModule {
+    Ok(IodineObject::IodineModule {
         name,
         code: box read_code_object(file)?,
     })
 }
 
-fn read_code_object(file: &mut File) -> io::Result<IodineObjects> {
-    let mut code = IodineObjects::CodeObject {
+fn read_code_object(file: &mut File) -> io::Result<IodineObject> {
+    let mut code = IodineObject::CodeObject {
         instructions: Vec::new(),
     };
 
@@ -97,23 +106,23 @@ fn read_code_object(file: &mut File) -> io::Result<IodineObjects> {
     Ok(code)
 }
 
-fn read_constant(file: &mut File) -> io::Result<IodineObjects> {
+fn read_constant(file: &mut File) -> io::Result<IodineObject> {
     let iodine_type = DataType::from(file.read_u8()?);
     println!("Encountered type: {:?}", iodine_type);
 
     match iodine_type {
         DataType::StringObject => {
-            return Ok(IodineObjects::IodineString {
+            return Ok(IodineObject::IodineString {
                 value: read_string(file)?,
             });
         }
         DataType::NameObject => {
-            return Ok(IodineObjects::IodineName {
+            return Ok(IodineObject::IodineName {
                 value: read_string(file)?,
             });
         }
         DataType::NullObject => {
-            return Ok(IodineObjects::IodineNull);
+            return Ok(IodineObject::IodineNull);
         }
         _ => unimplemented!(),
     }
@@ -135,7 +144,7 @@ fn read_instruction(file: &mut File) -> io::Result<Instruction> {
     Ok(Instruction {
         opcode: opcode,
         argument: argument,
-        object: argument_obj,
+        object: Rc::new(argument_obj),
     })
 }
 
