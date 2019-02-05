@@ -18,24 +18,23 @@ fn create_type(name: &str) -> (String, AttributeDictionary) {
     (name.to_string(), attribs)
 }
 
+macro_rules! create_iodine_type {
+    ($i:ident, $types:ident) => {
+        let i_type = create_type(stringify!($i));
+        $types.insert(i_type.0, i_type.1);
+    };
+}
+
 lazy_static! {
     static ref IodineTypes: IodineTypesDict = {
         let mut types = IodineTypesDict::new();
 
-        let obj_type = create_type("Object");
-        types.insert(obj_type.0, obj_type.1);
-
-        let str_type = create_type("Str");
-        types.insert(str_type.0, str_type.1);
-
-        let code_type = create_type("Code");
-        types.insert(code_type.0, code_type.1);
-
-        let module_type = create_type("Module");
-        types.insert(module_type.0, module_type.1);
-
-        let null_type = create_type("Null");
-        types.insert(null_type.0, null_type.1);
+        create_iodine_type!(Object, types);
+        create_iodine_type!(Str, types);
+        create_iodine_type!(Code, types);
+        create_iodine_type!(Module, types);
+        create_iodine_type!(Null, types);
+        create_iodine_type!(Name, types);
 
         types
     };
@@ -66,6 +65,9 @@ pub enum IodineObjects {
         code: Box<IodineObjects>,
     },
     IodineNull,
+    IodineName {
+        value: String,
+    },
 }
 
 unsafe impl Sync for IodineObjects {}
@@ -82,6 +84,7 @@ impl IodineObject for IodineObjects {
             IodineObjects::IodineObject => "Object".to_string(),
             IodineObjects::IodineModule { name: _, code: _ } => "Module".to_string(),
             IodineObjects::IodineNull => "Null".to_string(),
+            IodineObjects::IodineName { value: _ } => "Name".to_string(),
         }
     }
 
@@ -104,11 +107,12 @@ impl IodineObjects {
 impl fmt::Debug for IodineObjects {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            IodineObjects::IodineString { value } => write!(f, "String: {}", value),
+            IodineObjects::IodineString { value } => write!(f, "{}", value),
             IodineObjects::CodeObject { instructions: _ } => write!(f, "Code"),
             IodineObjects::IodineObject => write!(f, "Object"),
             IodineObjects::IodineModule { name: _, code: _ } => write!(f, "Module"),
             IodineObjects::IodineNull => write!(f, "Null"),
+            IodineObjects::IodineName { value } => write!(f, "{}", value),
         }
     }
 }

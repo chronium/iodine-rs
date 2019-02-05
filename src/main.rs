@@ -107,11 +107,20 @@ fn read_constant(file: &mut File) -> io::Result<IodineObjects> {
                 value: read_string(file)?,
             });
         }
+        DataType::NameObject => {
+            return Ok(IodineObjects::IodineName {
+                value: read_string(file)?,
+            });
+        }
+        DataType::NullObject => {
+            return Ok(IodineObjects::IodineNull);
+        }
         _ => unimplemented!(),
     }
 }
 
 fn read_instruction(file: &mut File) -> io::Result<Instruction> {
+    println!();
     let opcode = Opcode::from(file.read_u8()?);
     println!("Opcode: {:?}", opcode);
 
@@ -126,20 +135,34 @@ fn read_instruction(file: &mut File) -> io::Result<Instruction> {
     Ok(Instruction {
         opcode: opcode,
         argument: argument,
-        object: IodineObjects::IodineNull,
+        object: argument_obj,
     })
 }
 
 #[derive(Debug)]
 enum DataType {
+    CodeObject,
+    NameObject,
     StringObject,
+    IntObject,
+    FloatObject,
+    BoolObject,
+    NullObject,
+    BigIntObject,
 }
 
 impl From<u8> for DataType {
     fn from(iodine_type: u8) -> DataType {
         match iodine_type {
+            0x00 => DataType::CodeObject,
+            0x01 => DataType::NameObject,
             0x02 => DataType::StringObject,
-            _ => unimplemented!(),
+            0x03 => DataType::IntObject,
+            0x04 => DataType::FloatObject,
+            0x05 => DataType::BoolObject,
+            0x06 => DataType::NullObject,
+            0x07 => DataType::BigIntObject,
+            _ => unreachable!(),
         }
     }
 }
