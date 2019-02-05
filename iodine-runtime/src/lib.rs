@@ -1,38 +1,68 @@
 use std::collections::HashMap;
 
-pub trait IodineObject<'a> {
-    fn get_attributes(&self) -> &'a AttributeDictionary;
-    fn get_attributes_mut(&mut self) -> &'a mut AttributeDictionary;
+#[macro_use]
+extern crate lazy_static;
+
+fn create_type(name: &str) -> (String, AttributeDictionary) {
+    let mut attribs = AttributeDictionary::new();
+
+    attribs.insert(
+        "__name__".to_string(),
+        IodineObjects::IodineString {
+            value: name.to_string(),
+        },
+    );
+
+    (name.to_string(), attribs)
 }
 
-pub trait IodineType {
-    fn get_name(&self) -> String;
+lazy_static! {
+    static ref IodineTypes: IodineTypesDict = {
+        let mut types = IodineTypesDict::new();
+
+        let obj_type = create_type("Object");
+        types.insert(obj_type.0, obj_type.1);
+
+        let str_type = create_type("Str");
+        types.insert(str_type.0, str_type.1);
+
+        let code_type = create_type("Code");
+        types.insert(code_type.0, code_type.1);
+
+        types
+    };
 }
 
-pub type AttributeDictionary<'a> = HashMap<String, Box<&'a dyn IodineObject<'a>>>;
+pub struct Instruction;
 
-pub enum IodineTypes<'a> {
-    TypeDefinition { attribs: AttributeDictionary<'a> },
+pub trait IodineObject {
+    fn get_type(&self) -> String;
+
+    fn get_base(&self) -> String;
 }
 
-impl<'a> IodineType for IodineTypes<'a> {
-    fn get_name(&self) -> String {
+pub enum IodineObjects {
+    IodineString { value: String },
+    CodeObject { instructions: Vec<Instruction> },
+}
+
+unsafe impl Sync for IodineObjects {}
+unsafe impl Send for IodineObjects {}
+
+pub type AttributeDictionary = HashMap<String, IodineObjects>;
+pub type IodineTypesDict = HashMap<String, AttributeDictionary>;
+
+impl IodineObject for IodineObjects {
+    fn get_type(&self) -> String {
         match self {
-            IodineTypes::TypeDefinition { attribs: _ } => String::from("TypeDef"),
+            IodineObjects::IodineString { value: _ } => "Str".to_string(),
+            IodineObjects::CodeObject { instructions: _ } => "Code".to_string(),
         }
     }
-}
 
-impl<'a> IodineObject<'a> for IodineTypes<'a> {
-    fn get_attributes(&self) -> &'a AttributeDictionary {
+    fn get_base(&self) -> String {
         match self {
-            IodineTypes::TypeDefinition { attribs } => attribs,
-        }
-    }
-
-    fn get_attributes_mut(&mut self) -> &'a mut AttributeDictionary {
-        match self {
-            IodineTypes::TypeDefinition { attribs } => attribs,
+            _ => "Object".to_string(),
         }
     }
 }
