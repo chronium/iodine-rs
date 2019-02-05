@@ -44,6 +44,7 @@ pub trait IodineObject {
 pub enum IodineObjects {
     IodineString { value: String },
     CodeObject { instructions: Vec<Instruction> },
+    IodineObject,
 }
 
 unsafe impl Sync for IodineObjects {}
@@ -57,6 +58,7 @@ impl IodineObject for IodineObjects {
         match self {
             IodineObjects::IodineString { value: _ } => "Str".to_string(),
             IodineObjects::CodeObject { instructions: _ } => "Code".to_string(),
+            IodineObjects::IodineObject => "Object".to_string(),
         }
     }
 
