@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::*;
+
+mod opcode;
+use crate::opcode::Opcode;
 
 fn create_type(name: &str) -> (String, AttributeDictionary) {
     let mut attribs = AttributeDictionary::new();
@@ -29,11 +31,18 @@ lazy_static! {
         let code_type = create_type("Code");
         types.insert(code_type.0, code_type.1);
 
+        let module_type = create_type("Module");
+        types.insert(module_type.0, module_type.1);
+
         types
     };
 }
 
-pub struct Instruction;
+pub struct Instruction {
+    opcode: Opcode,
+    argument: i32,
+    object: IodineObjects,
+}
 
 pub trait IodineObject {
     fn get_type(&self) -> String;
@@ -42,9 +51,17 @@ pub trait IodineObject {
 }
 
 pub enum IodineObjects {
-    IodineString { value: String },
-    CodeObject { instructions: Vec<Instruction> },
+    IodineString {
+        value: String,
+    },
+    CodeObject {
+        instructions: Vec<Instruction>,
+    },
     IodineObject,
+    IodineModule {
+        name: String,
+        code: Box<IodineObjects>,
+    },
 }
 
 unsafe impl Sync for IodineObjects {}
@@ -59,6 +76,7 @@ impl IodineObject for IodineObjects {
             IodineObjects::IodineString { value: _ } => "Str".to_string(),
             IodineObjects::CodeObject { instructions: _ } => "Code".to_string(),
             IodineObjects::IodineObject => "Object".to_string(),
+            IodineObjects::IodineModule { name: _, code: _ } => "Module".to_string(),
         }
     }
 
