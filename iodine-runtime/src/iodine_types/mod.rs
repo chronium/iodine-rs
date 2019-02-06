@@ -1,5 +1,5 @@
+pub mod builtin_method;
 pub mod iodine_code_object;
-pub mod iodine_context;
 pub mod iodine_module;
 pub mod iodine_name;
 pub mod iodine_string;
@@ -29,5 +29,12 @@ macro_rules! code_object {
 macro_rules! module {
     ($name: expr, $code: expr) => {
         $crate::iodine_types::iodine_module::create($name, $code)
+    };
+}
+
+#[macro_export]
+macro_rules! builtin {
+    ($callback: tt) => {
+        $crate::iodine_types::builtin_method::create($callback)
     };
 }

@@ -1,16 +1,22 @@
 #![feature(box_patterns)]
 
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt,
+    sync::{Arc, Mutex},
+};
 
 use lazy_static::*;
 
-#[macro_use]
+pub mod iodine_context;
 pub mod iodine_types;
 pub mod opcode;
 pub mod stack_frame;
 pub mod virtual_machine;
 
 use crate::{opcode::Opcode, stack_frame::StackFrame, virtual_machine::VirtualMachine};
+
+pub type BuiltinMethodDef = fn(&VirtualMachine, &IodineObject, Vec<IodineObject>);
 
 fn create_type(name: &str) -> (String, AttributeDictionary) {
     let mut attribs = AttributeDictionary::new();
@@ -52,6 +58,17 @@ pub struct Instruction {
     pub object: Arc<IodineObject>,
 }
 
+impl Instruction {
+    fn get_string(&mut self) -> String {
+        if let Some(IodineObject::IodineName { attribs: _, value }) = Arc::get_mut(&mut self.object)
+        {
+            value.clone()
+        } else {
+            panic!("Tried to get string from non IodineName")
+        }
+    }
+}
+
 pub enum IodineObject {
     IodineString {
         attribs: AttributeDictionary,
@@ -67,7 +84,7 @@ pub enum IodineObject {
     IodineModule {
         attribs: AttributeDictionary,
         name: String,
-        code: Box<IodineObject>,
+        code: Mutex<Box<IodineObject>>,
     },
     IodineNull {
         attribs: AttributeDictionary,
@@ -76,12 +93,16 @@ pub enum IodineObject {
         attribs: AttributeDictionary,
         value: String,
     },
+    BuiltinMethodCallback {
+        attribs: AttributeDictionary,
+        callback: BuiltinMethodDef,
+    },
 }
 
 unsafe impl Sync for IodineObject {}
 unsafe impl Send for IodineObject {}
 
-pub type AttributeDictionary = HashMap<String, IodineObject>;
+pub type AttributeDictionary = HashMap<String, Arc<IodineObject>>;
 pub type IodineTypesDict = HashMap<String, AttributeDictionary>;
 
 impl IodineObject {
@@ -96,6 +117,16 @@ impl IodineObject {
     }
 
     pub fn get_instructions(&self) -> &Vec<Instruction> {
+        match self {
+            IodineObject::CodeObject {
+                attribs: _,
+                instructions,
+            } => instructions,
+            _ => panic!("Cannot get instruction from non CodeObject"),
+        }
+    }
+
+    pub fn get_instructions_mut(&mut self) -> &mut Vec<Instruction> {
         match self {
             IodineObject::CodeObject {
                 attribs: _,
@@ -126,6 +157,10 @@ impl IodineObject {
                 attribs: _,
                 value: _,
             } => "Name".to_string(),
+            IodineObject::BuiltinMethodCallback {
+                attribs: _,
+                callback: _,
+            } => "Builtin".to_string(),
         }
     }
 
@@ -136,9 +171,9 @@ impl IodineObject {
     }
 
     pub fn invoke(
-        &self,
+        &mut self,
         vm: &mut VirtualMachine,
-        arguments: Vec<IodineObject>,
+        arguments: Vec<Arc<IodineObject>>,
     ) -> Arc<IodineObject> {
         match self {
             IodineObject::IodineModule {
@@ -183,6 +218,10 @@ impl fmt::Debug for IodineObject {
             } => write!(f, "Module"),
             IodineObject::IodineNull { attribs: _ } => write!(f, "Null"),
             IodineObject::IodineName { attribs: _, value } => write!(f, "{}", value),
+            IodineObject::BuiltinMethodCallback {
+                attribs: _,
+                callback: _,
+            } => write!(f, "Builtin"),
         }
     }
 }

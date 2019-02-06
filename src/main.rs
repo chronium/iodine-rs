@@ -12,8 +12,8 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use leb128;
 
 use iodine_runtime::{
-    code_object, module, name, opcode::Opcode, string, virtual_machine::VirtualMachine,
-    Instruction, IodineNull, IodineObject,
+    builtin, code_object, iodine_context::IodineContext, module, name, opcode::Opcode, string,
+    virtual_machine::VirtualMachine, AttributeDictionary, Instruction, IodineNull, IodineObject,
 };
 
 const MAGIC: [u8; 5] = [0x49, 0x4F, 0x57, 0x49, 0x5A];
@@ -38,6 +38,10 @@ impl CompiledHeader {
     }
 }
 
+fn iodine_print(vm: &VirtualMachine, this: &IodineObject, args: Vec<IodineObject>) {
+    print!("{:?}", this);
+}
+
 fn run() -> io::Result<()> {
     let mut file = File::open("helloworld.bytecode")?;
 
@@ -55,12 +59,18 @@ fn run() -> io::Result<()> {
 
     println!("Expected iodine version: {}", header.ver_to_str());
 
-    let module = read_module(&mut file)?;
+    let mut module = read_module(&mut file)?;
+
+    let mut globals_dict = AttributeDictionary::new();
+    globals_dict.insert("print".to_string(), builtin!(iodine_print));
 
     let mut vm = VirtualMachine {
         frames: Vec::new(),
         stack_size: 0usize,
         frame_count: 0usize,
+        context: IodineContext {
+            globals: globals_dict,
+        },
     };
 
     println!("\n-----Execution started-----\n");
@@ -110,7 +120,7 @@ fn read_constant(file: &mut File) -> io::Result<Arc<IodineObject>> {
 
     match iodine_type {
         DataType::StringObject => {
-            return Ok(Arc::new(string!(read_string(file)?)));
+            return Ok(string!(read_string(file)?));
         }
         DataType::NameObject => {
             return Ok(Arc::new(name!(read_string(file)?)));

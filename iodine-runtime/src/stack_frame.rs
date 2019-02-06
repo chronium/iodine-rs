@@ -18,4 +18,8 @@ impl StackFrame {
 
         self.stack.push(push_obj.clone());
     }
+
+    pub fn pop(&mut self) -> Arc<IodineObject> {
+        self.stack.pop().unwrap()
+    }
 }
