@@ -38,8 +38,13 @@ impl CompiledHeader {
     }
 }
 
-fn iodine_print(vm: &VirtualMachine, this: &IodineObject, args: Vec<IodineObject>) {
+fn iodine_print(
+    vm: &VirtualMachine,
+    this: &IodineObject,
+    args: Vec<Arc<IodineObject>>,
+) -> Option<Arc<IodineObject>> {
     print!("{:?}", this);
+    None
 }
 
 fn run() -> io::Result<()> {
@@ -75,7 +80,7 @@ fn run() -> io::Result<()> {
 
     println!("\n-----Execution started-----\n");
 
-    module.invoke(&mut vm, Vec::new());
+    vm.invoke(&mut Arc::new(module), Vec::new());
 
     Ok(())
 }

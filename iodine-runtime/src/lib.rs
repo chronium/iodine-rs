@@ -16,7 +16,8 @@ pub mod virtual_machine;
 
 use crate::{opcode::Opcode, stack_frame::StackFrame, virtual_machine::VirtualMachine};
 
-pub type BuiltinMethodDef = fn(&VirtualMachine, &IodineObject, Vec<IodineObject>);
+pub type BuiltinMethodDef =
+    fn(&VirtualMachine, &IodineObject, Vec<Arc<IodineObject>>) -> Option<Arc<IodineObject>>;
 
 fn create_type(name: &str) -> (String, AttributeDictionary) {
     let mut attribs = AttributeDictionary::new();
@@ -167,33 +168,6 @@ impl IodineObject {
     fn get_base(&self) -> String {
         match self {
             _ => "Object".to_string(),
-        }
-    }
-
-    pub fn invoke(
-        &mut self,
-        vm: &mut VirtualMachine,
-        arguments: Vec<Arc<IodineObject>>,
-    ) -> Arc<IodineObject> {
-        match self {
-            IodineObject::IodineModule {
-                attribs: _,
-                name: _,
-                code,
-            } => {
-                vm.new_frame(StackFrame {
-                    stack: Vec::new(),
-                    locals: AttributeDictionary::new(),
-                    instruction_pointer: 0usize,
-                });
-
-                let ret = vm.eval_code(code);
-
-                vm.end_frame();
-
-                ret
-            }
-            _ => unimplemented!(),
         }
     }
 

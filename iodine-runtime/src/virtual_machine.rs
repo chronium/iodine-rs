@@ -1,6 +1,6 @@
 use crate::{
-    iodine_context::IodineContext, opcode::Opcode, stack_frame::StackFrame, IodineNull,
-    IodineObject,
+    iodine_context::IodineContext, opcode::Opcode, stack_frame::StackFrame, AttributeDictionary,
+    IodineNull, IodineObject,
 };
 
 use std::sync::{Arc, Mutex};
@@ -67,21 +67,60 @@ impl VirtualMachine {
                         .push(Some(global.unwrap().clone()));
                 }
                 Opcode::Invoke => {
-                    let frame = &mut self.frames.last_mut().unwrap();
-                    let target = &mut frame.pop();
+                    //let frame = &mut self.frames.last_mut().unwrap();
+                    let target = &mut VirtualMachine::pop(self);
                     let mut args: Vec<Arc<IodineObject>> =
                         Vec::with_capacity(instruction.argument as usize);
                     for _ in 0..args.capacity() {
-                        args.push(frame.pop());
+                        args.push(VirtualMachine::pop(self));
                     }
 
-                    let val = target.invoke(self, args);
-                    frame.push(Some(val));
+                    self.invoke(target, args);
                 }
                 _ => panic!("Unimplemented instruction: {:?}", instruction.opcode),
             }
         }
 
         IodineNull.clone()
+    }
+
+    fn pop(&mut self) -> Arc<IodineObject> {
+        self.frames.last_mut().unwrap().pop()
+    }
+
+    pub fn invoke(&mut self, obj: &mut Arc<IodineObject>, arguments: Vec<Arc<IodineObject>>) {
+        match Arc::get_mut(obj).unwrap() {
+            IodineObject::IodineModule {
+                attribs: _,
+                name: _,
+                code,
+            } => {
+                self.new_frame(StackFrame {
+                    stack: Vec::new(),
+                    locals: AttributeDictionary::new(),
+                    instruction_pointer: 0usize,
+                });
+
+                let ret = self.eval_code(code);
+
+                self.end_frame();
+
+                self.frames.last_mut().unwrap().push(Some(ret));
+                return;
+            }
+            IodineObject::BuiltinMethodCallback {
+                attribs: _,
+                callback,
+            } => {
+                let ret = callback(self, obj, arguments);
+
+                if ret.is_some() {
+                    self.frames.last_mut().unwrap().push(ret)
+                }
+                return;
+            }
+            _ => panic!("wtf"),
+        }
+        unimplemented!()
     }
 }
