@@ -1,19 +1,19 @@
-use crate::{AttributeDictionary, IodineObject};
+use crate::{AttributeDictionary, IodineNull, IodineObject};
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct StackFrame {
-    pub stack: Vec<Rc<IodineObject>>,
+    pub stack: Vec<Arc<IodineObject>>,
     pub locals: AttributeDictionary,
     pub instruction_pointer: usize,
 }
 
 impl StackFrame {
-    pub fn push(&mut self, obj: Option<Rc<IodineObject>>) {
+    pub fn push(&mut self, obj: Option<Arc<IodineObject>>) {
         let push_obj = if let Some(obj) = obj {
             obj
         } else {
-            Rc::new(IodineObject::IodineNull)
+            IodineNull.clone()
         };
 
         self.stack.push(push_obj.clone());

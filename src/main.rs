@@ -5,13 +5,16 @@ use std::{
     io,
     io::prelude::*,
     io::{Error, ErrorKind},
-    rc::Rc,
+    sync::Arc,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use leb128;
 
-use iodine_runtime::{opcode::Opcode, virtual_machine::VirtualMachine, Instruction, IodineObject};
+use iodine_runtime::{
+    code_object, module, name, opcode::Opcode, string, virtual_machine::VirtualMachine,
+    Instruction, IodineNull, IodineObject,
+};
 
 const MAGIC: [u8; 5] = [0x49, 0x4F, 0x57, 0x49, 0x5A];
 
@@ -84,16 +87,11 @@ fn read_module(file: &mut File) -> io::Result<IodineObject> {
 
     println!("Encountered module: {}", name);
 
-    Ok(IodineObject::IodineModule {
-        name,
-        code: box read_code_object(file)?,
-    })
+    Ok(module!(name, box read_code_object(file)?))
 }
 
 fn read_code_object(file: &mut File) -> io::Result<IodineObject> {
-    let mut code = IodineObject::CodeObject {
-        instructions: Vec::new(),
-    };
+    let mut code = code_object!();
 
     let instruction_count = file.read_u32::<LittleEndian>()?;
 
@@ -106,23 +104,19 @@ fn read_code_object(file: &mut File) -> io::Result<IodineObject> {
     Ok(code)
 }
 
-fn read_constant(file: &mut File) -> io::Result<IodineObject> {
+fn read_constant(file: &mut File) -> io::Result<Arc<IodineObject>> {
     let iodine_type = DataType::from(file.read_u8()?);
     println!("Encountered type: {:?}", iodine_type);
 
     match iodine_type {
         DataType::StringObject => {
-            return Ok(IodineObject::IodineString {
-                value: read_string(file)?,
-            });
+            return Ok(Arc::new(string!(read_string(file)?)));
         }
         DataType::NameObject => {
-            return Ok(IodineObject::IodineName {
-                value: read_string(file)?,
-            });
+            return Ok(Arc::new(name!(read_string(file)?)));
         }
         DataType::NullObject => {
-            return Ok(IodineObject::IodineNull);
+            return Ok(IodineNull.clone());
         }
         _ => unimplemented!(),
     }
@@ -144,7 +138,7 @@ fn read_instruction(file: &mut File) -> io::Result<Instruction> {
     Ok(Instruction {
         opcode: opcode,
         argument: argument,
-        object: Rc::new(argument_obj),
+        object: argument_obj,
     })
 }
 

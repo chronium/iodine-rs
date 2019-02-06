@@ -1,6 +1,6 @@
-use crate::{opcode::Opcode, stack_frame::StackFrame, IodineObject};
+use crate::{opcode::Opcode, stack_frame::StackFrame, IodineNull, IodineObject};
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct VirtualMachine {
     pub frames: Vec<StackFrame>,
@@ -23,9 +23,12 @@ impl VirtualMachine {
         self.frames.pop()
     }
 
-    pub fn eval_code(&mut self, code: &Box<IodineObject>) -> IodineObject {
+    pub fn eval_code(&mut self, code: &Box<IodineObject>) -> Arc<IodineObject> {
         match code {
-            &box IodineObject::CodeObject { instructions: _ } => {}
+            &box IodineObject::CodeObject {
+                attribs: _,
+                instructions: _,
+            } => {}
             _ => panic!("Tried to evaluate non-code object"),
         }
 
@@ -49,6 +52,6 @@ impl VirtualMachine {
             }
         }
 
-        IodineObject::IodineNull
+        IodineNull.clone()
     }
 }
