@@ -1,7 +1,7 @@
 [package]
 name = "iodine-rs"
 version = "0.1.0"
-authors = ["onliv"]
+authors = ["Chronium"]
 edition = "2018"
 
 [dependencies]
