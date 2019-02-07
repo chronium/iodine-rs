@@ -61,7 +61,7 @@ pub struct Instruction {
 
 impl Instruction {
     fn get_string(&mut self) -> String {
-        if let Some(IodineObject::IodineName { attribs: _, value }) = Arc::get_mut(&mut self.object)
+        if let Some(IodineObject::IodineName { value, .. }) = Arc::get_mut(&mut self.object)
         {
             value.clone()
         } else {
@@ -110,8 +110,8 @@ impl IodineObject {
     pub fn push_instruction(&mut self, instruction: Instruction) {
         match self {
             IodineObject::CodeObject {
-                attribs: _,
                 instructions,
+                ..
             } => instructions.push(instruction),
             _ => panic!("Cannot push instruction on non CodeObject"),
         }
@@ -120,8 +120,8 @@ impl IodineObject {
     pub fn get_instructions(&self) -> &Vec<Instruction> {
         match self {
             IodineObject::CodeObject {
-                attribs: _,
                 instructions,
+                ..
             } => instructions,
             _ => panic!("Cannot get instruction from non CodeObject"),
         }
@@ -130,8 +130,8 @@ impl IodineObject {
     pub fn get_instructions_mut(&mut self) -> &mut Vec<Instruction> {
         match self {
             IodineObject::CodeObject {
-                attribs: _,
                 instructions,
+                ..
             } => instructions,
             _ => panic!("Cannot get instruction from non CodeObject"),
         }
@@ -140,27 +140,21 @@ impl IodineObject {
     fn get_type(&self) -> String {
         match self {
             IodineObject::IodineString {
-                attribs: _,
-                value: _,
+                ..
             } => "Str".to_string(),
             IodineObject::CodeObject {
-                attribs: _,
-                instructions: _,
+                ..
             } => "Code".to_string(),
-            IodineObject::IodineObject { attribs: _ } => "Object".to_string(),
+            IodineObject::IodineObject { .. } => "Object".to_string(),
             IodineObject::IodineModule {
-                attribs: _,
-                name: _,
-                code: _,
+                ..
             } => "Module".to_string(),
-            IodineObject::IodineNull { attribs: _ } => "Null".to_string(),
+            IodineObject::IodineNull { .. } => "Null".to_string(),
             IodineObject::IodineName {
-                attribs: _,
-                value: _,
+                ..
             } => "Name".to_string(),
             IodineObject::BuiltinMethodCallback {
-                attribs: _,
-                callback: _,
+                ..
             } => "Builtin".to_string(),
         }
     }
@@ -179,22 +173,18 @@ impl IodineObject {
 impl fmt::Debug for IodineObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            IodineObject::IodineString { attribs: _, value } => write!(f, "{}", value),
+            IodineObject::IodineString { value, .. } => write!(f, "{}", value),
             IodineObject::CodeObject {
-                attribs: _,
-                instructions: _,
+                ..
             } => write!(f, "Code"),
-            IodineObject::IodineObject { attribs: _ } => write!(f, "Object"),
+            IodineObject::IodineObject { .. } => write!(f, "Object"),
             IodineObject::IodineModule {
-                attribs: _,
-                name: _,
-                code: _,
+                ..
             } => write!(f, "Module"),
-            IodineObject::IodineNull { attribs: _ } => write!(f, "Null"),
-            IodineObject::IodineName { attribs: _, value } => write!(f, "{}", value),
+            IodineObject::IodineNull { .. } => write!(f, "Null"),
+            IodineObject::IodineName { value, .. } => write!(f, "{}", value),
             IodineObject::BuiltinMethodCallback {
-                attribs: _,
-                callback: _,
+                ..
             } => write!(f, "Builtin"),
         }
     }

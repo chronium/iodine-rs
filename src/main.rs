@@ -1,4 +1,5 @@
 #![feature(box_syntax)]
+#![allow(unused_variables)]
 
 use std::{
     fs::File,
@@ -50,8 +51,8 @@ fn iodine_print(
 fn run() -> io::Result<()> {
     let mut file = File::open("helloworld.bytecode")?;
 
-    for i in 0..5 {
-        if file.read_u8().unwrap() != MAGIC[i] {
+    for b in &MAGIC {
+        if file.read_u8().expect("Unable to read MAGIC header.") != *b {
             return Err(Error::new(ErrorKind::Other, "Magic unknown"));
         }
     }
@@ -64,7 +65,7 @@ fn run() -> io::Result<()> {
 
     println!("Expected iodine version: {}", header.ver_to_str());
 
-    let mut module = read_module(&mut file)?;
+    let module = read_module(&mut file)?;
 
     let mut globals_dict = AttributeDictionary::new();
     globals_dict.insert("print".to_string(), builtin!(iodine_print));
@@ -124,14 +125,14 @@ fn read_constant(file: &mut File) -> io::Result<Arc<IodineObject>> {
     println!("Encountered type: {:?}", iodine_type);
 
     match iodine_type {
-        DataType::StringObject => {
-            return Ok(string!(read_string(file)?));
+        DataType::String => {
+            Ok(string!(read_string(file)?))
         }
-        DataType::NameObject => {
-            return Ok(Arc::new(name!(read_string(file)?)));
+        DataType::Name => {
+            Ok(Arc::new(name!(read_string(file)?)))
         }
-        DataType::NullObject => {
-            return Ok(IodineNull.clone());
+        DataType::Null => {
+            Ok(IodineNull.clone())
         }
         _ => unimplemented!(),
     }
@@ -151,35 +152,35 @@ fn read_instruction(file: &mut File) -> io::Result<Instruction> {
     let _line = file.read_i32::<LittleEndian>();
 
     Ok(Instruction {
-        opcode: opcode,
-        argument: argument,
+        opcode,
+        argument,
         object: argument_obj,
     })
 }
 
 #[derive(Debug)]
 enum DataType {
-    CodeObject,
-    NameObject,
-    StringObject,
-    IntObject,
-    FloatObject,
-    BoolObject,
-    NullObject,
-    BigIntObject,
+    Code,
+    Name,
+    String,
+    Int,
+    Float,
+    Bool,
+    Null,
+    BigInt,
 }
 
 impl From<u8> for DataType {
     fn from(iodine_type: u8) -> DataType {
         match iodine_type {
-            0x00 => DataType::CodeObject,
-            0x01 => DataType::NameObject,
-            0x02 => DataType::StringObject,
-            0x03 => DataType::IntObject,
-            0x04 => DataType::FloatObject,
-            0x05 => DataType::BoolObject,
-            0x06 => DataType::NullObject,
-            0x07 => DataType::BigIntObject,
+            0x00 => DataType::Code,
+            0x01 => DataType::Name,
+            0x02 => DataType::String,
+            0x03 => DataType::Int,
+            0x04 => DataType::Float,
+            0x05 => DataType::Bool,
+            0x06 => DataType::Null,
+            0x07 => DataType::BigInt,
             _ => unreachable!(),
         }
     }

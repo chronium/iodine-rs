@@ -30,8 +30,7 @@ impl VirtualMachine {
     pub fn eval_code(&mut self, code: &mut Mutex<Box<IodineObject>>) -> Arc<IodineObject> {
         match *code.lock().unwrap() {
             box IodineObject::CodeObject {
-                attribs: _,
-                instructions: _,
+                ..
             } => {}
             _ => panic!("Tried to evaluate non-code object"),
         }
@@ -91,9 +90,8 @@ impl VirtualMachine {
     pub fn invoke(&mut self, obj: &mut Arc<IodineObject>, arguments: Vec<Arc<IodineObject>>) {
         match Arc::get_mut(obj).unwrap() {
             IodineObject::IodineModule {
-                attribs: _,
-                name: _,
                 code,
+                ..
             } => {
                 self.new_frame(StackFrame {
                     stack: Vec::new(),
@@ -109,8 +107,8 @@ impl VirtualMachine {
                 return;
             }
             IodineObject::BuiltinMethodCallback {
-                attribs: _,
                 callback,
+                ..
             } => {
                 let ret = callback(self, obj, arguments);
 
@@ -121,6 +119,8 @@ impl VirtualMachine {
             }
             _ => panic!("wtf"),
         }
-        unimplemented!()
+        #[allow(unreachable_code)] {
+            unimplemented!()
+        }
     }
 }
